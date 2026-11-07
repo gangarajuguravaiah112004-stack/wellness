@@ -1,4 +1,4 @@
-import { connectDatabase, isDatabaseConnected } from '../../server/config/db.js';
+import { connectDatabase } from '../../server/config/db.js';
 import { Consultation, validateConsultation } from '../../server/config/consultations.js';
 
 const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -10,10 +10,13 @@ export default async function handler(request) {
     const { pathname } = new URL(request.url);
 
     if (pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({
-            status: 'ok',
-            database: isDatabaseConnected() ? 'mongodb' : 'unavailable',
-        });
+        try {
+            await connectDatabase();
+            return jsonResponse({ status: 'ok', database: 'mongodb' });
+        } catch (databaseError) {
+            console.error('MongoDB health check failed:', databaseError.message);
+            return jsonResponse({ status: 'unavailable', database: 'unavailable' }, 503);
+        }
     }
 
     if (pathname !== '/api/consultations') {
