@@ -1,15 +1,28 @@
 import mongoose from 'mongoose';
 
+let connectionPromise;
+
+export function isDatabaseConnected() {
+    return mongoose.connection.readyState === 1;
+}
+
 export async function connectDatabase() {
     if (!process.env.MONGODB_URI) {
-        console.error('MONGODB_URI is not set; consultation submissions are unavailable.');
-        return;
+        throw new Error('MONGODB_URI is not set.');
     }
 
-    try {
-        await mongoose.connect(process.env.MONGODB_URI);
-        console.log('Connected to MongoDB.');
-    } catch (error) {
-        console.error('MongoDB connection failed; consultation submissions are unavailable:', error.message);
+    if (isDatabaseConnected()) return;
+
+    if (!connectionPromise) {
+        connectionPromise = mongoose.connect(process.env.MONGODB_URI, {
+            serverSelectionTimeoutMS: 5000,
+        }).then(() => {
+            console.log('Connected to MongoDB.');
+        }).catch((error) => {
+            connectionPromise = undefined;
+            throw error;
+        });
     }
+
+    await connectionPromise;
 }
